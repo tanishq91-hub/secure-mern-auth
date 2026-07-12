@@ -11,6 +11,9 @@ await connectDB()
 
 const app = express()
 
+//Middlewares
+app.use(express.json())
+
 // Using Routes
 app.use("/api/v1", userRoutes)
 
