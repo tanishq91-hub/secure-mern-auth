@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+
+# Package manager files
+.pnpm-store/
+.npm/
+
+# Optional npm cache
+npm-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+vite.svg
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+
+# Remix
+.build/
+
+# Local database
+*.sqlite
+*.sqlite3
+
+# Firebase
+.firebase/
+
+# Serverless
+.serverless/
+
+# Misc
+*.tgz
