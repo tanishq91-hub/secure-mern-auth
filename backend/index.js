@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser"
 import dns from "dns"
 import dotenv from "dotenv"
 import express from "express"
@@ -20,12 +21,13 @@ export const redisClient = createClient({
     url: redisUrl,
 })
 
-redisClient.connect().then(()=>console.log("Connected to Redis")).catch(console.error)
+redisClient.connect().then(() => console.log("Connected to Redis")).catch(console.error)
 
 const app = express()
 
 //Middlewares
 app.use(express.json())
+app.use(cookieParser())
 
 // Using Routes
 app.use("/api/v1", userRoutes)
