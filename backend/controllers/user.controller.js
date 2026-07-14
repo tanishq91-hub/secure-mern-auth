@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt"
 import crypto from "crypto"
 import sanitize from "mongo-sanitize"
-import { generateToken } from "../config/generateToken.js"
+import { generateAccessToken, generateToken, verifyRefreshToken } from "../config/generateToken.js"
 import { getOtpHtml, getVerifyEmailHtml } from "../config/html.js"
 import sendMail from "../config/sendMail.js"
 import { loginSchema, registerSchema } from "../config/zod.js"
@@ -239,4 +239,28 @@ export const myProfile = TryCatch(async (req, res) => {
     const user = req.user
 
     res.json(user)
+})
+
+export const refreshToken = TryCatch(async (req, res) => {
+    const refreshToken = req.cookies.refreshToken
+
+    if (!refreshToken) {
+        return res.status(401).json({
+            message: "Invalid refresh token"
+        })
+    }
+
+    const decode = await verifyRefreshToken(refreshToken)
+
+    if (!decode) {
+        return res.status(401).json({
+            message: "Invalid Refresh Token"
+        })
+    }
+
+    generateAccessToken(decode.id, res)
+
+    res.status(200).json({
+        message: "Token Refreshed"
+    })
 })
