@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt"
 import crypto from "crypto"
 import sanitize from "mongo-sanitize"
-import { generateAccessToken, generateToken, verifyRefreshToken } from "../config/generateToken.js"
+import { generateAccessToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../config/generateToken.js"
 import { getOtpHtml, getVerifyEmailHtml } from "../config/html.js"
 import sendMail from "../config/sendMail.js"
 import { loginSchema, registerSchema } from "../config/zod.js"
@@ -262,5 +262,20 @@ export const refreshToken = TryCatch(async (req, res) => {
 
     res.status(200).json({
         message: "Token Refreshed"
+    })
+})
+
+export const logoutUser = TryCatch(async (req, res) => {
+    const userId = req.user._id
+
+    await revokeRefreshToken(userId)
+
+    res.clearCookie("refreshToken")
+    res.clearCookie("accessToken")
+
+    await redisClient.del(`user:${userId}`)
+
+    res.json({
+        message: "User Logged out Successfully!!"
     })
 })
