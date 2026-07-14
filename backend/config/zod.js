@@ -3,5 +3,10 @@ import { z } from "zod"
 export const registerSchema = z.object({
     name: z.string().min(3, "Name must be of 3 character long"),
     email: z.string().email("Invalid email format"),
-    password:z.string().min(8,"Password must be of 8 character")
+    password: z.string().min(8, "Password must be of 8 character")
+})
+
+export const loginSchema = z.object({
+    email: z.string().email("Invalid email format"),
+    password: z.string().min(8, "Password must be of 8 character")
 })

@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt"
 import crypto from "crypto"
 import sanitize from "mongo-sanitize"
-import { getVerifyEmailHtml } from "../config/html.js"
+import { generateToken } from "../config/generateToken.js"
+import { getOtpHtml, getVerifyEmailHtml } from "../config/html.js"
 import sendMail from "../config/sendMail.js"
-import { registerSchema } from "../config/zod.js"
+import { loginSchema, registerSchema } from "../config/zod.js"
 import { redisClient } from "../index.js"
 import TryCatch from "../middlewares/TryCatch.js"
 import { User } from "../models/user.model.js"
@@ -36,9 +37,9 @@ export const registerUser = TryCatch(async (req, res) => {
 
     const { name, email, password } = validation.data
 
-    const reateLimitKey = `Register-rate-limit: ${req.ip}:${email}`
+    const rateLimitKey = `Register-rate-limit: ${req.ip}:${email}`
 
-    if (await redisClient.get(reateLimitKey)) {
+    if (await redisClient.get(rateLimitKey)) {
         return res.status(429).json({
             message: "Too many requests, Try again Later"
         })
@@ -120,5 +121,116 @@ export const verifyUser = TryCatch(async (req, res) => {
             name: newUser.name,
             email: newUser.email
         }
+    })
+})
+
+export const loginUser = TryCatch(async (req, res) => {
+    const sanitizedBody = sanitize(req.body)
+
+    const validation = loginSchema.safeParse(sanitizedBody)
+
+    if (!validation.success) {
+        const zodError = validation.error
+
+        let firstErrorMessage = "Validation Failed"
+        let allErrors = []
+
+        if (zodError?.issues && Array.isArray(zodError.issues)) {
+            allErrors = zodError.issues.map((issue) => ({
+                field: issue.path ? issue.path.join(".") : "Unknown",
+                message: issue.message || "Validation Error",
+                code: issue.code
+            }))
+
+            firstErrorMessage = allErrors[0]?.message || "Validation Error"
+        }
+        return res.status(400).json({
+            message: firstErrorMessage,
+            error: allErrors
+        })
+    }
+
+    const { email, password } = validation.data
+
+    const rateLimitKey = `login-rate-limit:${req.ip}:${email}`
+
+    if (await redisClient.get(rateLimitKey)) {
+        return res.status(429).json({
+            message: "Too many requests, Try again Later"
+        })
+    }
+
+    const user = await User.findOne({ email })
+
+    if (!user) {
+        return res.status(400).json({
+            message: "Invalid credentials"
+        })
+    }
+
+    const camparePassword = await bcrypt.compare(password, user.password)
+
+    if (!camparePassword) {
+        return res.status(400).json({
+            message: "Invalid credentials"
+        })
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+
+    const otpKey = `otp:${email}`
+
+    await redisClient.set(otpKey, JSON.stringify(otp), { EX: 300 })
+
+
+    const subject = "Otp for Verification"
+
+    const html = getOtpHtml({ email, otp })
+
+    await sendMail({ email, subject, html })
+
+    await redisClient.set(rateLimitKey, "true", { EX: 60 })
+
+    res.json({
+        message: "If your email is valid, an OTP has been sent. It will be valid for 5 minutes."
+    })
+})
+
+export const verifyOtp = TryCatch(async (req, res) => {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+        return res.status(400).json({
+            message: "Please provide all the details"
+        })
+    }
+
+    const otpKey = `otp:${email}`
+
+    const storedOtpString = await redisClient.get(otpKey)
+
+    if (!storedOtpString) {
+        return res.status(400).json({
+            message: "OTP expired"
+        })
+    }
+
+    const storedOtp = JSON.parse(storedOtpString)
+
+    if (storedOtp !== otp) {
+        return res.status(400).json({
+            message: "Invalid OTP!!"
+        })
+    }
+
+    await redisClient.del(otpKey)
+
+    let user = await User.findOne({ email })
+
+    const tokenData = await generateToken(user._id, res)
+
+    res.status(200).json({
+        message: `Welcome ${user.name}`,
+        user
     })
 })
