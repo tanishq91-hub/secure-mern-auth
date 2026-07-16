@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt"
 import crypto from "crypto"
 import sanitize from "mongo-sanitize"
+import { generateCSRFToken } from "../config/csrfMiddleware.js"
 import { generateAccessToken, generateToken, revokeRefreshToken, verifyRefreshToken } from "../config/generateToken.js"
 import { getOtpHtml, getVerifyEmailHtml } from "../config/html.js"
 import sendMail from "../config/sendMail.js"
@@ -272,10 +273,22 @@ export const logoutUser = TryCatch(async (req, res) => {
 
     res.clearCookie("refreshToken")
     res.clearCookie("accessToken")
+    res.clearCookie("csrfToken")
 
     await redisClient.del(`user:${userId}`)
 
     res.json({
         message: "User Logged out Successfully!!"
+    })
+})
+
+export const refreshCSRF = TryCatch(async (req, res) => {
+    const userId = req.user._id
+
+    const newCSRFToken = await generateCSRFToken(userId, res)
+
+    res.json({
+        message: "CSRF Token Refreshed Successfully!!",
+        csrfToken: newCSRFToken
     })
 })

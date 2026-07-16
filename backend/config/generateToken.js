@@ -1,66 +1,97 @@
-import jwt from "jsonwebtoken"
-import { redisClient } from "../index.js"
+import jwt from "jsonwebtoken";
+import { redisClient } from "../index.js";
+import { generateCSRFToken, revokeCSRFToken } from "./csrfMiddleware.js";
 
 export const generateToken = async (id, res) => {
-    const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: "1m"
-    })
+    const accessToken = jwt.sign(
+        { id },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "15m",
+        }
+    );
 
-    const refreshToken = jwt.sign({ id }, process.env.REFRESH_SECRET, {
-        expiresIn: "7d"
-    })
+    const refreshToken = jwt.sign(
+        { id },
+        process.env.REFRESH_SECRET,
+        {
+            expiresIn: "7d",
+        }
+    );
 
-    const refreshTokenKey = `refresh_token:${id}`
+    const refreshTokenKey = `refresh_token:${id}`;
 
-    await redisClient.setEx(refreshTokenKey, 7 * 24 * 60 * 60, refreshToken)
+    await redisClient.setEx(
+        refreshTokenKey,
+        7 * 24 * 60 * 60,
+        refreshToken
+    );
 
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 1 * 60 * 1000
-    })
+        maxAge: 15 * 60 * 1000,
+    });
 
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-    return { accessToken, refreshToken }
-}
+    const csrfToken = await generateCSRFToken(id, res)
+
+    return {
+        accessToken,
+        refreshToken,
+        csrfToken
+    };
+};
 
 export const verifyRefreshToken = async (refreshToken) => {
     try {
-        const decode = jwt.verify(refreshToken, process.env.REFRESH_SECRET)
+        const decoded = jwt.verify(
+            refreshToken,
+            process.env.REFRESH_SECRET
+        );
 
-        const storedToken = await redisClient.get(`refresh_token:${decode.id}`)
+        const storedToken = await redisClient.get(
+            `refresh_token:${decoded.id}`
+        );
 
         if (storedToken === refreshToken) {
-            return decode
+            return decoded;
         }
-        return null
+
+        return null;
     } catch (error) {
-        return null
+        return null;
     }
-}
+};
 
 export const generateAccessToken = (id, res) => {
-    const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: "1m"
-    })
+    const accessToken = jwt.sign(
+        { id },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "15m",
+        }
+    );
 
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 1 * 60 * 1000
-    })
+        maxAge: 15 * 60 * 1000,
+    });
 
-    return accessToken
-}
+    return accessToken;
+};
 
 export const revokeRefreshToken = async (userId) => {
-    await redisClient.del(`refresh_token:${userId}`)
-}
+    await redisClient.del(`refresh_token:${userId}`);
+
+    await revokeCSRFToken(userId)
+};
