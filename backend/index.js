@@ -1,4 +1,5 @@
 import cookieParser from "cookie-parser"
+import cors from "cors"
 import dns from "dns"
 import dotenv from "dotenv"
 import express from "express"
@@ -28,6 +29,11 @@ const app = express()
 //Middlewares
 app.use(express.json())
 app.use(cookieParser())
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+}))
 
 // Using Routes
 app.use("/api/v1", userRoutes)
